@@ -1,0 +1,55 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f4f5f7;
+  color: #172b4d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  text-align: center;
+  background-color: white;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #8A100B; /* A BC-like maroon color */
+  margin-bottom: 10px;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: #42526e;
+}
+
+.main-content {
+  margin-top: 30px;
+}
+
+.google-button {
+  display: inline-block;
+  background-color: #4285F4;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.3s;
+}
+
+.google-button:hover {
+  background-color: #3367D6;
+}
+
+.sub-text {
+  margin-top: 15px;
+  font-size: 0.9rem;
+  color: #6b778c;
+}
