@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import AuthCallback from './AuthCallback';
 import CreateListing from './CreateListing';
 import Listings from './Listings';
+import MessagesPage from './pages/MessagesPage';
+import ThreadPage from './pages/ThreadPage';
 import './App.css';
+import logo from './assets/bc_marketplace_logo.png';
 
 const GoogleIcon = () => (
     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
@@ -15,80 +18,206 @@ const GoogleIcon = () => (
     </svg>
 );
 
-function Header() {
-    const token = localStorage.getItem('authToken');
-    const handleSignOut = () => {
-        localStorage.removeItem('authToken');
-        window.location.reload();
+function Header({ token, onLogout, onPostListingClick }) {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
     };
-    const handleSignIn = () => {
-        window.location.href = 'http://127.0.0.1:8000/auth/google/login';
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
     };
-    return (
-        <header className="app-header">
-            <div className="container header-content">
-                <div></div>
-                <div className="logo">
-                    <h1>BC Marketplace</h1>
-                    <p>For Eagles, By Eagles</p>
-                </div>
-                <nav className="header-nav">
-                    {token ? (
-                        <button onClick={handleSignOut} className="btn btn-secondary">
-                            Sign Out
-                        </button>
-                    ) : (
-                        <button onClick={handleSignIn} className="btn btn-google">
-                            <GoogleIcon />
-                            Sign in
-                        </button>
-                    )}
-                </nav>
-            </div>
-        </header>
-    );
+  }, []);
+
+  const handleSignIn = () => {
+    window.location.href = 'http://127.0.0.1:8000/auth/google/login';
+  };
+
+  return (
+    <header className={isScrolled ? "app-header scrolled" : "app-header"}>
+      <div className="container header-content">
+        <div className="header-logo-container">
+          <Link to="/">
+            <img src={logo} alt="BC Marketplace Logo" className="header-logo" />
+          </Link>
+        </div>
+        <div className="logo">
+          <h1><Link to="/" className="logo-link">BC Marketplace</Link></h1>
+        </div>
+        <nav className="header-nav">
+          {token ? (
+            <>
+              <Link to="/messages" className="btn btn-secondary">Messages</Link>
+              <button onClick={onPostListingClick} className="btn btn-gold">Post Listing</button>
+              <button onClick={onLogout} className="btn btn-secondary">Sign Out</button>
+            </>
+          ) : (
+            <button onClick={handleSignIn} className="btn btn-gold">
+              <GoogleIcon /> Login
+            </button>
+          )}
+        </nav>
+      </div>
+    </header>
+  );
 }
 
-function HomePage() {
-    const token = localStorage.getItem('authToken');
-    const [forceUpdate, setForceUpdate] = useState(0);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+function ListingDetailModal({ listingId, closeModal }) {
+  const [listing, setListing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const navigate = useNavigate();
+  const token = localStorage.getItem('authToken');
 
-    const handleListingCreated = () => {
-        setIsModalOpen(false);
-        setForceUpdate(prev => prev + 1); 
+  useEffect(() => {
+    if (!listingId) return;
+    const fetchListing = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/listings/${listingId}`);
+        if (!response.ok) throw new Error('Listing not found');
+        const data = await response.json();
+        setListing(data);
+        setSelectedImage(data.main_image_url || data.image_url_1);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
+    fetchListing();
+  }, [listingId]);
 
-    return (
-        <div className="container">
-            <Listings key={forceUpdate} openModal={() => setIsModalOpen(true)} />
+  const handleMessageSeller = async () => {
+    if (!token) {
+      alert("Please log in to message a seller.");
+      return;
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/threads/${listingId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Could not start conversation.');
+      }
+      const thread = await response.json();
+      navigate(`/thread/${thread.id}`);
+      closeModal();
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    }
+  };
 
-            {isModalOpen && (
-                <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <CreateListing onListingCreated={handleListingCreated} />
-                        <button className="modal-close-btn" onClick={() => setIsModalOpen(false)}>
-                            &times;
-                        </button>
-                    </div>
+  const galleryImages = listing ? [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4].filter(Boolean) : [];
+
+  return (
+    <div className="modal-overlay" onClick={closeModal}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={closeModal}>&times;</button>
+        {loading ? <div className="spinner"></div> : (
+          listing && (
+            <div>
+              {selectedImage && <img src={`http://127.0.0.1:8000${selectedImage}`} alt={listing.title} className="modal-main-image" />}
+              
+              <div className="modal-thumbnail-gallery">
+                {galleryImages.map((url, index) => (
+                  <img 
+                    key={index} 
+                    src={`http://127.0.0.1:8000${url}`} 
+                    alt={`${listing.title} thumbnail ${index + 1}`}
+                    className={url === selectedImage ? 'thumbnail selected' : 'thumbnail'}
+                    onClick={() => setSelectedImage(url)}
+                  />
+                ))}
+              </div>
+
+              <h2>{listing.title}</h2>
+              <p className="listing-price-modal">${listing.price.toFixed(2)}</p>
+              <p className="listing-category-modal">{listing.category}</p>
+              <p>{listing.description}</p>
+              <div className="seller-info">
+                <img src={listing.owner.photo_url} alt={listing.owner.name} className="owner-avatar-modal" />
+                <div>
+                  <p><strong>Seller:</strong> {listing.owner.name}</p>
+                  <p><em>Verified @bc.edu email</em></p>
                 </div>
-            )}
-        </div>
-    );
+              </div>
+              <button className="btn btn-primary-modal" onClick={handleMessageSeller}>Message Seller</button>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HomePage({ onListingCreated, onListingClick }) {
+  return (
+    <div className="container">
+      <Listings
+        onListingCreated={onListingCreated}
+        onListingClick={onListingClick}
+      />
+    </div>
+  );
 }
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedListingId, setSelectedListingId] = useState(null);
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  const handleLogin = (tok) => {
+    localStorage.setItem('authToken', tok);
+    setToken(tok);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    setToken(null);
+  };
+
+  const handleListingCreated = () => {
+    setIsCreateModalOpen(false);
+    setUpdateTrigger(prev => prev + 1);
+  };
+
   return (
     <Router>
-        <div className="app-wrapper">
-            <Header />
-            <main>
-                <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/auth/callback" element={<AuthCallback />} />
-                </Routes>
-            </main>
-        </div>
+      <div className="app-wrapper">
+        <Header token={token} onLogout={handleLogout} onPostListingClick={() => setIsCreateModalOpen(true)} />
+        <main>
+          <Routes>
+            <Route path="/" element={
+              <HomePage
+                key={updateTrigger}
+                onListingCreated={handleListingCreated}
+                onListingClick={setSelectedListingId}
+              />
+            } />
+            <Route path="/auth/callback" element={<AuthCallback onLogin={handleLogin} />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/thread/:threadId" element={<ThreadPage />} />
+          </Routes>
+        </main>
+        {isCreateModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsCreateModalOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <CreateListing onListingCreated={handleListingCreated} />
+              <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>&times;</button>
+            </div>
+          </div>
+        )}
+        {selectedListingId && (
+          <ListingDetailModal listingId={selectedListingId} closeModal={() => setSelectedListingId(null)} />
+        )}
+      </div>
     </Router>
   );
 }

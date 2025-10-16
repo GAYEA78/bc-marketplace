@@ -1,0 +1,113 @@
+.create-listing-form {
+  padding: 1.5rem 2rem;
+  border: 15px solid var(--bc-maroon); 
+  border-radius: 10px;
+  background-color: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.create-listing-form h2 {
+  font-family: 'Lora', serif;
+  color: var(--text-primary);
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 2rem;
+  font-size: 1.8rem; 
+}
+
+.form-group {
+  margin-bottom: 1.5rem; 
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600; 
+  margin-bottom: 0.6rem; 
+  color: var(--text-secondary);
+  font-size: 0.95rem; 
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.9rem 1rem; 
+  font-size: 1rem;
+  border-radius: 8px; 
+  border: 1px solid var(--border-color);
+  transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out; 
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--bc-maroon); 
+  box-shadow: 0 0 0 4px rgba(138, 16, 11, 0.25); 
+}
+
+.btn-form-primary {
+  width: 100%;
+  padding: 1rem; 
+  font-size: 1.15rem; 
+  font-weight: 700; 
+  border: none;
+  border-radius: 8px; 
+  cursor: pointer;
+  background-color: var(--bc-maroon);
+  color: white;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out; 
+}
+
+.btn-form-primary:hover {
+  background-color: #6a0c08; 
+}
+
+.btn-form-primary:active {
+  transform: translateY(1px); 
+}
+
+.btn-form-primary:disabled {
+  background-color: #d8d8d8; 
+  color: #888;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.form-message {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-weight: 500;
+  color: var(--text-secondary); 
+}
+
+
+.image-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.image-previews img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+
+.preview-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.preview-image.selected {
+  border-color: var(--bc-maroon);
+}

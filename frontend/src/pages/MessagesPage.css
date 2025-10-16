@@ -1,0 +1,32 @@
+.threads-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.thread-card {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-decoration: none;
+    color: #212529;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.thread-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+.thread-card-info h3 {
+    margin: 0 0 0.5rem 0;
+}
+.thread-card-info p {
+    margin: 0;
+    color: #6c757d;
+}
+.thread-card-arrow {
+    font-size: 2rem;
+    color: #8A100B;
+}

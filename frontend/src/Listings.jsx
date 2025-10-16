@@ -1,14 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
-const categories = ["Textbooks", "Furniture", "Electronics", "Tickets", "Other"];
+const categories = ["All Products", "Textbooks", "Furniture", "Electronics", "Tickets", "Other"];
 
-function Listings({ openModal }) {
+const gridContainerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15
+    }
+  }
+};
+
+const gridItemVariants = {
+  hidden: { opacity: 0, y: 50 },
+  show: { opacity: 1, y: 0 }
+};
+
+function Listings({ onListingCreated, onListingClick }) {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const token = localStorage.getItem('authToken');
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -32,59 +47,94 @@ function Listings({ openModal }) {
       }
     };
 
-    fetchListings();
-  }, [searchQuery, filterCategory]);
+    const debounceFetch = setTimeout(() => {
+      fetchListings();
+    }, 300);
+
+    return () => clearTimeout(debounceFetch);
+  }, [searchQuery, filterCategory, onListingCreated]);
 
   return (
     <div>
-        <div className="actions-bar">
-            <div className="filter-controls">
-                <input
-                    type="text"
-                    placeholder="Search for items or categories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                    <option value="">All Categories</option>
-                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-            </div>
-            {token && (
-                <button className="btn btn-primary" onClick={openModal}>
-                    Post a New Listing
-                </button>
-            )}
+      <div className="actions-bar">
+        <div className="filter-controls">
+          <input
+            type="text"
+            placeholder="Search for items..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            {categories.map(cat => (
+              <option key={cat} value={cat === "All Products" ? "" : cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
+      </div>
 
-        {loading && <div className="spinner"></div>}
-        {error && <p className="error-message">Error: {error}</p>}
-        
-        {!loading && !error && (
-            <div className="listings-grid">
-                {listings.length === 0 ? (
-                    <div className="empty-state">
-                        <h3>No Listings Found</h3>
-                        <p>Try adjusting your search or be the first to post!</p>
-                    </div>
-                ) : (
-                    listings.map((listing) => (
-                        <div key={listing.id} className="listing-card">
-                            <div className="card-header">
-                                <h3>{listing.title}</h3>
-                                <p className="listing-price">${listing.price.toFixed(2)}</p>
-                            </div>
-                            <p className="listing-category">{listing.category}</p>
-                            <p className="card-description">{listing.description}</p>
-                            <div className="card-footer">
-                                <img src={listing.owner.photo_url} alt={listing.owner.name} className="owner-avatar" />
-                                <span>{listing.owner.name}</span>
-                            </div>
-                        </div>
-                    ))
-                )}
+      {loading && <div className="spinner"></div>}
+      {error && <p className="error-message">Error: {error}</p>}
+
+      {!loading && !error && (
+        <motion.div
+          className="listings-grid"
+          variants={gridContainerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+        >
+          {listings.length === 0 ? (
+            <div className="empty-state">
+              <h3>No Listings Found</h3>
+              <p>Try adjusting your search or be the first to post!</p>
             </div>
-        )}
+          ) : (
+            listings.map((listing) => (
+              <motion.div
+                key={listing.id}
+                className="listing-card"
+                onClick={() => onListingClick(listing.id)}
+                variants={gridItemVariants}
+              >
+                {(() => {
+                  const displayImage =
+                    listing.main_image_url ||
+                    listing.image_url_1 ||
+                    listing.image_url_2 ||
+                    listing.image_url_3 ||
+                    listing.image_url_4;
+
+                  if (!displayImage) return null;
+
+                  return (
+                    <img
+                      src={`http://127.0.0.1:8000${displayImage}`}
+                      alt={listing.title}
+                      className="listing-card-image"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          'https://via.placeholder.com/600x400?text=No+Image';
+                      }}
+                    />
+                  );
+                })()}
+
+                <div className="listing-card-content">
+                  <h3>{listing.title}</h3>
+                  <p className="card-details">
+                    {listing.description || 'No description available.'}
+                  </p>
+                  <div className="card-footer">
+                    <p className="listing-price">${listing.price.toFixed(2)}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </motion.div>
+      )}
     </div>
   );
 }
