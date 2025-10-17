@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Report Was Received</title>
+</head>
+<body style="font-family: sans-serif;">
+  <h2 style="color:#8A100B; margin-bottom:0.25rem;">Thanks for your report</h2>
+  <p style="margin-top:0;">Hi {{reporter_name}},</p>
+  <p>We’ve received your report and our team will review it shortly.</p>
+
+  <hr style="border:none; border-top:1px solid #eee; margin:16px 0;">
+
+  <h3 style="margin:0 0 8px;">Report Summary</h3>
+  <ul style="margin:0 0 12px 18px; padding:0;">
+    <li><strong>Listing:</strong> {{listing_title}}</li>
+    <li><strong>Listing ID:</strong> {{listing_id}}</li>
+    
+  </ul>
+
+  <h3 style="margin:12px 0 8px;">Reason you provided</h3>
+  <p style="padding:10px; border-left:3px solid #ccc; background:#f8f9fa; white-space:pre-wrap;">
+    {{reason}}
+  </p>
+
+  <p style="margin-top:16px;">If you have more details to add, just reply to this email.</p>
+  <p style="color:#6c757d; font-size:12px; margin-top:24px;">BC Marketplace</p>
+</body>
+</html>

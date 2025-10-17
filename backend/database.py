@@ -44,6 +44,7 @@ class Listing(Base):
     image_url_2 = Column(String, nullable=True)
     image_url_3 = Column(String, nullable=True)
     image_url_4 = Column(String, nullable=True)
+    message_threads = relationship("MessageThread", back_populates="listing", cascade="all, delete-orphan")
 
 class MessageThread(Base):
     __tablename__ = "message_threads"
@@ -53,9 +54,10 @@ class MessageThread(Base):
     seller_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    listing = relationship("Listing")
+    listing = relationship("Listing", back_populates="message_threads")
     buyer = relationship("User", foreign_keys=[buyer_id])
     seller = relationship("User", foreign_keys=[seller_id])
+    messages = relationship("Message", back_populates="thread", cascade="all, delete-orphan")
 
 class Message(Base):
     __tablename__ = "messages"
@@ -64,7 +66,7 @@ class Message(Base):
     sender_id = Column(String, ForeignKey("users.id"), nullable=False)
     body = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    thread = relationship("MessageThread")
+    thread = relationship("MessageThread", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
 
 def get_db():

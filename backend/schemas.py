@@ -23,6 +23,9 @@ class ListingBase(BaseModel):
 class ListingCreate(ListingBase):
     pass
 
+class ReportCreate(BaseModel):
+    reason: str
+
 class Listing(ListingBase):
     id: str
     owner_id: str
@@ -57,5 +60,14 @@ class Thread(BaseModel):
     listing: Listing
     buyer: User
     seller: User
+    class Config:
+        from_attributes = True
+
+
+class ListingPublic(ListingBase):
+    id: str
+    owner_id: str
+    created_at: datetime
+
     class Config:
         from_attributes = True

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Listing Report</title>
+</head>
+<body style="font-family: sans-serif;">
+    <h2 style="color: #8A100B;">New Listing Report Received</h2>
+    <p>A new report has been submitted on BC Marketplace.</p>
+    <hr>
+    <h3>Report Details:</h3>
+    <ul>
+        <li><strong>Reported By:</strong> {{reporter_name}} ({{reporter_email}})</li>
+        <li><strong>Listing Title:</strong> {{listing_title}}</li>
+        <li><strong>Listing ID:</strong> {{listing_id}}</li>
+        <li><strong>Listing Owner:</strong> {{owner_name}}</li>
+    </ul>
+    <h3>Reason for Report:</h3>
+    <p style="padding: 10px; border-left: 3px solid #ccc; background-color: #f8f9fa;">
+        {{reason}}
+    </p>
+    <hr>
+</body>
+</html>

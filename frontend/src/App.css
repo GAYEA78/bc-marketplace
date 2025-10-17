@@ -472,3 +472,36 @@ main {
   object-fit: cover;
   display: block;
 }
+
+
+.report-form textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.btn-danger {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: #dc3545;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-report {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+  display: block;
+  margin: 1.5rem auto 0;
+  font-size: 0.9rem;
+}

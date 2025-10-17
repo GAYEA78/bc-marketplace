@@ -7,6 +7,7 @@ import MessagesPage from './pages/MessagesPage';
 import ThreadPage from './pages/ThreadPage';
 import './App.css';
 import logo from './assets/bc_marketplace_logo.png';
+import MyListingsPage from './pages/MyListingsPage';
 
 const GoogleIcon = () => (
     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
@@ -49,6 +50,7 @@ function Header({ token, onLogout, onPostListingClick }) {
         <nav className="header-nav">
           {token ? (
             <>
+              <Link to="/my-listings" className="btn btn-secondary">My Listings</Link>
               <Link to="/messages" className="btn btn-secondary">Messages</Link>
               <button onClick={onPostListingClick} className="btn btn-gold">Post Listing</button>
               <button onClick={onLogout} className="btn btn-secondary">Sign Out</button>
@@ -64,7 +66,7 @@ function Header({ token, onLogout, onPostListingClick }) {
   );
 }
 
-function ListingDetailModal({ listingId, closeModal }) {
+function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -98,7 +100,7 @@ function ListingDetailModal({ listingId, closeModal }) {
     try {
       const response = await fetch(`http://127.0.0.1:8000/threads/${listingId}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const errData = await response.json();
@@ -113,22 +115,33 @@ function ListingDetailModal({ listingId, closeModal }) {
     }
   };
 
-  const galleryImages = listing ? [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4].filter(Boolean) : [];
+  const galleryImages = listing
+    ? [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4].filter(Boolean)
+    : [];
 
   return (
     <div className="modal-overlay" onClick={closeModal}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close-btn" onClick={closeModal}>&times;</button>
-        {loading ? <div className="spinner"></div> : (
+
+        {loading ? (
+          <div className="spinner"></div>
+        ) : (
           listing && (
             <div>
-              {selectedImage && <img src={`http://127.0.0.1:8000${selectedImage}`} alt={listing.title} className="modal-main-image" />}
-              
+              {selectedImage && (
+                <img
+                  src={`http://127.0.0.1:8000${selectedImage}`}
+                  alt={listing.title}
+                  className="modal-main-image"
+                />
+              )}
+
               <div className="modal-thumbnail-gallery">
                 {galleryImages.map((url, index) => (
-                  <img 
-                    key={index} 
-                    src={`http://127.0.0.1:8000${url}`} 
+                  <img
+                    key={index}
+                    src={`http://127.0.0.1:8000${url}`}
                     alt={`${listing.title} thumbnail ${index + 1}`}
                     className={url === selectedImage ? 'thumbnail selected' : 'thumbnail'}
                     onClick={() => setSelectedImage(url)}
@@ -140,14 +153,35 @@ function ListingDetailModal({ listingId, closeModal }) {
               <p className="listing-price-modal">${listing.price.toFixed(2)}</p>
               <p className="listing-category-modal">{listing.category}</p>
               <p>{listing.description}</p>
+
               <div className="seller-info">
-                <img src={listing.owner.photo_url} alt={listing.owner.name} className="owner-avatar-modal" />
+                <svg
+                  className="owner-avatar-modal"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-4.43-.82-6.14-2.88a9.947 9.947 0 0 1 12.28 0C16.43 19.18 14.03 20 12 20z" />
+                </svg>
                 <div>
-                  <p><strong>Seller:</strong> {listing.owner.name}</p>
-                  <p><em>Verified @bc.edu email</em></p>
+                  <p><em>Seller is a verified @bc.edu email</em></p>
                 </div>
               </div>
-              <button className="btn btn-primary-modal" onClick={handleMessageSeller}>Message Seller</button>
+
+              <button className="btn btn-primary-modal" onClick={handleMessageSeller}>
+                Message Seller
+              </button>
+
+              <button
+                className="btn-report"
+                onClick={() => {
+                  setReportingListingId(listingId);
+                  closeModal(); // Close listing modal before opening report modal
+                }}
+              >
+                Report this listing
+              </button>
             </div>
           )
         )}
@@ -155,6 +189,90 @@ function ListingDetailModal({ listingId, closeModal }) {
     </div>
   );
 }
+
+function ReportModal({ listingId, closeModal }) {
+  const [reason, setReason] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const token = localStorage.getItem('authToken');
+
+  const handleSubmitReport = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setMessage('');
+
+    if (!token) {
+      setMessage('Please log in to report a listing.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/listings/${listingId}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(errText || 'Failed to submit report. Please try again.');
+      }
+
+      setSubmitted(true);
+      setMessage('Report submitted successfully. An admin will review it shortly. Thank you.');
+      setReason('');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={!submitted ? closeModal : undefined}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={closeModal}>&times;</button>
+
+        {!submitted ? (
+          <>
+            <h2>Report Listing</h2>
+            <form onSubmit={handleSubmitReport} className="report-form">
+              <p>Please provide a reason for reporting this listing.</p>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g., scam..."
+                rows="5"
+                required
+                disabled={isSubmitting}
+              />
+              <button type="submit" className="btn btn-danger" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit Report'}
+              </button>
+              {message && <p className="form-message">{message}</p>}
+            </form>
+          </>
+        ) : (
+          <>
+            <h2>Report Submitted</h2>
+            <p className="form-message">{message}</p>
+            <button className="btn btn-primary-modal" onClick={closeModal}>Close</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
 
 function HomePage({ onListingCreated, onListingClick }) {
   return (
@@ -172,6 +290,7 @@ function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
+  const [reportingListingId, setReportingListingId] = useState(null);
 
   const handleLogin = (tok) => {
     localStorage.setItem('authToken', tok);
@@ -194,28 +313,47 @@ function App() {
         <Header token={token} onLogout={handleLogout} onPostListingClick={() => setIsCreateModalOpen(true)} />
         <main>
           <Routes>
-            <Route path="/" element={
-              <HomePage
-                key={updateTrigger}
-                onListingCreated={handleListingCreated}
-                onListingClick={setSelectedListingId}
-              />
-            } />
+            <Route
+              path="/"
+              element={
+                <HomePage
+                  key={updateTrigger}
+                  onListingCreated={handleListingCreated}
+                  onListingClick={setSelectedListingId}
+                />
+              }
+            />
             <Route path="/auth/callback" element={<AuthCallback onLogin={handleLogin} />} />
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/thread/:threadId" element={<ThreadPage />} />
+            <Route path="/my-listings" element={<MyListingsPage />} />
           </Routes>
         </main>
+
         {isCreateModalOpen && (
           <div className="modal-overlay" onClick={() => setIsCreateModalOpen(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <CreateListing onListingCreated={handleListingCreated} />
-              <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>&times;</button>
+              <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>
+                &times;
+              </button>
             </div>
           </div>
         )}
+
         {selectedListingId && (
-          <ListingDetailModal listingId={selectedListingId} closeModal={() => setSelectedListingId(null)} />
+          <ListingDetailModal
+            listingId={selectedListingId}
+            closeModal={() => setSelectedListingId(null)}
+            setReportingListingId={setReportingListingId}
+          />
+        )}
+
+        {reportingListingId && (
+          <ReportModal
+            listingId={reportingListingId}
+            closeModal={() => setReportingListingId(null)}
+          />
         )}
       </div>
     </Router>

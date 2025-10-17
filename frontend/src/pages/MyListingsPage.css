@@ -1,0 +1,56 @@
+.my-listings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.my-listing-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.my-listing-card-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.my-listing-card-content {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.my-listing-card-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.my-listing-price {
+  font-weight: bold;
+  color: var(--text-primary);
+  margin: 0;
+  margin-bottom: auto; 
+}
+
+.delete-button {
+  margin-top: 1rem;
+  padding: 0.6rem;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+  background-color: transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-button:hover {
+  background-color: #dc3545;
+  color: white;
+}

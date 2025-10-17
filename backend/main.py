@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta
 import jwt
 import json
+from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import RedirectResponse
@@ -19,9 +20,26 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import File, Form, UploadFile
 import uuid
 import shutil
+from fastapi import BackgroundTasks
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+
 
 load_dotenv()
 
+conf = ConnectionConfig(
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM = os.getenv("MAIL_FROM"),
+    MAIL_PORT = int(os.getenv("MAIL_PORT")),
+    MAIL_SERVER = os.getenv("MAIL_SERVER"),
+    MAIL_STARTTLS = os.getenv("MAIL_STARTTLS").lower() == 'true',
+    MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS").lower() == 'true',
+    USE_CREDENTIALS = True,
+    VALIDATE_CERTS = True,
+    TEMPLATE_FOLDER=Path(__file__).parent / "templates",
+)
+
+fm = FastMail(conf)
 
 class ConnectionManager:
     def __init__(self):
@@ -49,7 +67,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -204,7 +222,7 @@ def create_listing(
     db_session.refresh(new_listing)
     return new_listing
 
-@app.get("/listings", response_model=List[schemas.Listing])
+@app.get("/listings", response_model=List[schemas.ListingPublic])
 def get_all_listings(db_session: Session = Depends(db.get_db), query: Optional[str] = None, category: Optional[str] = None):
     listings_query = db_session.query(db.Listing).options(
         joinedload(db.Listing.owner)
@@ -221,7 +239,89 @@ def get_all_listings(db_session: Session = Depends(db.get_db), query: Optional[s
     listings = listings_query.order_by(db.Listing.created_at.desc()).all()
     return listings
 
-@app.get("/listings/{listing_id}", response_model=schemas.Listing)
+
+@app.get("/users/me/listings", response_model=List[schemas.Listing])
+def get_my_listings(
+    db_session: Session = Depends(db.get_db), 
+    current_user: schemas.User = Depends(get_current_user)
+):
+    listings = db_session.query(db.Listing).options(
+        joinedload(db.Listing.owner)
+    ).filter(db.Listing.owner_id == current_user.id).order_by(db.Listing.created_at.desc()).all()
+    return listings
+
+@app.delete("/listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_listing(
+    listing_id: str, 
+    db_session: Session = Depends(db.get_db), 
+    current_user: schemas.User = Depends(get_current_user)
+):
+    listing = db_session.query(db.Listing).filter(db.Listing.id == listing_id).first()
+
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+
+    if listing.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this listing")
+
+    image_urls = [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4]
+    for url in image_urls:
+        if url:
+            try:
+                os.remove(url.lstrip('/'))
+            except FileNotFoundError:
+                pass
+
+    db_session.delete(listing)
+    db_session.commit()
+    return
+
+@app.post("/listings/{listing_id}/report", status_code=status.HTTP_204_NO_CONTENT)
+async def report_listing(
+    listing_id: str,
+    report: schemas.ReportCreate,
+    background_tasks: BackgroundTasks,
+    db_session: Session = Depends(db.get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    listing = db_session.query(db.Listing).options(
+        joinedload(db.Listing.owner)
+    ).filter(db.Listing.id == listing_id).first()
+
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+
+    template_data = {
+        "reporter_name": current_user.name,
+        "reporter_email": current_user.bc_email,
+        "listing_title": listing.title,
+        "listing_id": listing.id,
+        "owner_name": listing.owner.name,
+        "reason": report.reason,
+    }
+
+    admin_message = MessageSchema(
+        subject=f"New Report for Listing: {listing.title}",
+        recipients=["gayearona89@gmail.com"],
+        template_body=template_data,
+        subtype=MessageType.html,
+    )
+
+    confirmation_message = MessageSchema(
+        subject=f"We've received your report: {listing.title}",
+        recipients=[current_user.bc_email],
+        template_body=template_data,
+        subtype=MessageType.html,
+    )
+
+    background_tasks.add_task(fm.send_message, admin_message, template_name="report_notification.html")
+    background_tasks.add_task(fm.send_message, confirmation_message, template_name="report_confirmation.html")
+
+    return
+
+
+
+@app.get("/listings/{listing_id}", response_model=schemas.ListingPublic)
 def get_listing_by_id(listing_id: str, db_session: Session = Depends(db.get_db)):
     listing = db_session.query(db.Listing).options(joinedload(db.Listing.owner)).filter(db.Listing.id == listing_id).first()
     if not listing:
@@ -263,6 +363,13 @@ def get_user_threads(db_session: Session = Depends(db.get_db), current_user: sch
     ).filter(
         or_(db.MessageThread.buyer_id == current_user.id, db.MessageThread.seller_id == current_user.id)
     ).order_by(db.MessageThread.updated_at.desc()).all()
+
+    for thread in threads:
+        if thread.buyer_id == current_user.id:
+            thread.seller.name = "Seller"
+        else:
+            thread.buyer.name = "Buyer"
+            
     return threads
 
 @app.get("/threads/{thread_id}/messages", response_model=List[schemas.Message])
@@ -273,22 +380,61 @@ def get_thread_messages(thread_id: str, db_session: Session = Depends(db.get_db)
     messages = db_session.query(db.Message).filter(db.Message.thread_id == thread_id).order_by(db.Message.created_at.asc()).all()
     return messages
 
+
 @app.post("/threads/{thread_id}/messages", response_model=schemas.Message)
-async def send_message(thread_id: str, message: schemas.MessageCreate, db_session: Session = Depends(db.get_db), current_user: schemas.User = Depends(get_current_user)):
-    thread = db_session.query(db.MessageThread).filter(db.MessageThread.id == thread_id).first()
+async def send_message(
+    thread_id: str,
+    message: schemas.MessageCreate,
+    background_tasks: BackgroundTasks,
+    db_session: Session = Depends(db.get_db),
+    current_user: schemas.User = Depends(get_current_user),
+):
+    thread = db_session.query(db.MessageThread).options(
+        joinedload(db.MessageThread.listing),
+        joinedload(db.MessageThread.buyer),
+        joinedload(db.MessageThread.seller),
+    ).filter(db.MessageThread.id == thread_id).first()
+
     if not thread or (thread.buyer_id != current_user.id and thread.seller_id != current_user.id):
         raise HTTPException(status_code=404, detail="Thread not found")
-    
-    new_message = db.Message(thread_id=thread_id, sender_id=current_user.id, body=message.body)
+
+    new_message = db.Message(
+        thread_id=thread_id,
+        sender_id=current_user.id,
+        body=message.body
+    )
     thread.updated_at = datetime.utcnow()
     db_session.add(new_message)
     db_session.commit()
     db_session.refresh(new_message)
 
+    recipient = thread.seller if current_user.id == thread.buyer_id else thread.buyer
+    sender_role = "a potential buyer" if current_user.id == thread.buyer_id else "the seller"
+
+    template_data = {
+        "recipient_name": recipient.name,
+        "sender_role": sender_role,
+        "listing_title": thread.listing.title,
+    }
+
+    message_email = MessageSchema(
+        subject="You have a new message on BC Marketplace",
+        recipients=[recipient.bc_email],
+        template_body=template_data,
+        subtype=MessageType.html,
+    )
+
+    background_tasks.add_task(
+        fm.send_message,
+        message_email,
+        template_name="new_message.html"
+    )
+
     response_data = schemas.Message.from_orm(new_message)
     await manager.broadcast(response_data.json(), thread_id)
-    
+
     return new_message
+
 
 
 @app.get("/users/me", response_model=schemas.User)
