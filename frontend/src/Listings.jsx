@@ -31,7 +31,9 @@ function Listings({ onListingCreated, onListingClick }) {
       const params = new URLSearchParams();
       if (searchQuery) params.append('query', searchQuery);
       if (filterCategory) params.append('category', filterCategory);
-      const url = `http://127.0.0.1:8000/listings?${params.toString()}`;
+      const qs = params.toString();
+      const url = `${import.meta.env.VITE_API_BASE_URL}/listings${qs ? `?${qs}` : ''}`;
+      
 
       try {
         const response = await fetch(url);
@@ -110,7 +112,7 @@ function Listings({ onListingCreated, onListingClick }) {
 
                   return (
                     <img
-                      src={`http://127.0.0.1:8000${displayImage}`}
+                      src={`${import.meta.env.VITE_API_BASE_URL}${displayImage}`}
                       alt={listing.title}
                       className="listing-card-image"
                       onError={(e) => {

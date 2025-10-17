@@ -32,8 +32,9 @@ conf = ConnectionConfig(
     MAIL_FROM = os.getenv("MAIL_FROM"),
     MAIL_PORT = int(os.getenv("MAIL_PORT")),
     MAIL_SERVER = os.getenv("MAIL_SERVER"),
-    MAIL_STARTTLS = os.getenv("MAIL_STARTTLS").lower() == 'true',
-    MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS").lower() == 'true',
+    MAIL_STARTTLS = str(os.getenv("MAIL_STARTTLS", "false")).lower() == 'true',
+    MAIL_SSL_TLS  = str(os.getenv("MAIL_SSL_TLS", "false")).lower() == 'true',
+
     USE_CREDENTIALS = True,
     VALIDATE_CERTS = True,
     TEMPLATE_FOLDER=Path(__file__).parent / "templates",
@@ -61,21 +62,28 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-
+FRONTEND_URLS = os.getenv("FRONTEND_URLS", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in FRONTEND_URLS.split(",") if o.strip()]
 app = FastAPI()
+
+os.makedirs("static/images", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-REDIRECT_URI = "http://127.0.0.1:8000/auth/google/callback"
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000")
+REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", f"{BACKEND_BASE_URL}/auth/google/callback")
 JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
@@ -172,7 +180,7 @@ def auth_google_callback(code: str, db_session: Session = Depends(db.get_db)):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"sub": user.id, "exp": expire}
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    redirect_url = f"http://localhost:5173/auth/callback?token={encoded_jwt}"
+    redirect_url = f"{FRONTEND_URL}/auth/callback?token={encoded_jwt}"
     return RedirectResponse(redirect_url)
 
 @app.post("/listings", response_model=schemas.Listing)

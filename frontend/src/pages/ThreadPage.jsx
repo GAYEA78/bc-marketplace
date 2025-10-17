@@ -31,7 +31,7 @@ function ThreadPage() {
             }
             try {
                 setLoading(true);
-                const response = await fetch(`http://127.0.0.1:8000/threads/${threadId}/messages`, {
+                const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/threads/${threadId}/messages`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) {
@@ -51,7 +51,8 @@ function ThreadPage() {
     useEffect(() => {
         if (!currentUser) return;
 
-        const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${threadId}`);
+        const wsUrl = import.meta.env.VITE_API_BASE_URL.replace(/^http/, 'ws');
+        const ws = new WebSocket(`${wsUrl}/ws/${threadId}`);
         
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
@@ -74,7 +75,7 @@ function ThreadPage() {
         if (!newMessage.trim() || !token) return;
 
         try {
-            const response = await fetch(`http://127.0.0.1:8000/threads/${threadId}/messages`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/threads/${threadId}/messages`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

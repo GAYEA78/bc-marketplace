@@ -33,7 +33,7 @@ function Header({ token, onLogout, onPostListingClick }) {
   }, []);
 
   const handleSignIn = () => {
-    window.location.href = 'http://127.0.0.1:8000/auth/google/login';
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google/login`;
   };
 
   return (
@@ -78,7 +78,7 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
     const fetchListing = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://127.0.0.1:8000/listings/${listingId}`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listings/${listingId}`);
         if (!response.ok) throw new Error('Listing not found');
         const data = await response.json();
         setListing(data);
@@ -98,7 +98,7 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
       return;
     }
     try {
-      const response = await fetch(`http://127.0.0.1:8000/threads/${listingId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/threads/${listingId}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -131,7 +131,7 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
             <div>
               {selectedImage && (
                 <img
-                  src={`http://127.0.0.1:8000${selectedImage}`}
+                  src={`${import.meta.env.VITE_API_BASE_URL}${selectedImage}`}
                   alt={listing.title}
                   className="modal-main-image"
                 />
@@ -141,7 +141,7 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
                 {galleryImages.map((url, index) => (
                   <img
                     key={index}
-                    src={`http://127.0.0.1:8000${url}`}
+                    src={`${import.meta.env.VITE_API_BASE_URL}${url}`}
                     alt={`${listing.title} thumbnail ${index + 1}`}
                     className={url === selectedImage ? 'thumbnail selected' : 'thumbnail'}
                     onClick={() => setSelectedImage(url)}
@@ -209,7 +209,7 @@ function ReportModal({ listingId, closeModal }) {
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/listings/${listingId}/report`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listings/${listingId}/report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

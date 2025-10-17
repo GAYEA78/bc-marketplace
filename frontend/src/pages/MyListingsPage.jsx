@@ -16,7 +16,7 @@ function MyListingsPage() {
         return;
       }
       try {
-        const response = await fetch('http://127.0.0.1:8000/users/me/listings', {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/me/listings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Could not fetch your listings.');
@@ -37,7 +37,7 @@ function MyListingsPage() {
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/listings/${listingId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listings/${listingId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -66,11 +66,15 @@ function MyListingsPage() {
         ) : (
           listings.map(listing => (
             <div key={listing.id} className="my-listing-card">
-              <img 
-                src={`http://127.0.0.1:8000${listing.main_image_url || listing.image_url_1}`} 
-                alt={listing.title} 
-                className="my-listing-card-image" 
-              />
+<img
+  src={`${import.meta.env.VITE_API_BASE_URL}${listing.main_image_url || listing.image_url_1 || ''}`}
+  alt={listing.title}
+  className="my-listing-card-image"
+  onError={(e) => {
+    e.currentTarget.src = 'https://via.placeholder.com/600x400?text=No+Image';
+  }}
+/>
+
               <div className="my-listing-card-content">
                 <h3>{listing.title}</h3>
                 <p className="my-listing-price">${listing.price.toFixed(2)}</p>
