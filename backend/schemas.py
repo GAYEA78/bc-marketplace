@@ -7,6 +7,7 @@ class User(BaseModel):
     name: str
     bc_email: str
     photo_url: str | None = None
+    is_admin: bool
     class Config:
         from_attributes = True
 

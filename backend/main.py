@@ -116,6 +116,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db_session: Session = 
         raise credentials_exception
     return user
 
+
+def get_current_admin_user(current_user: schemas.User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Not authorized: Admin access required"
+        )
+    return current_user
+
 @app.get("/")
 def read_root():
     return {"message": "Backend"}
@@ -331,6 +340,21 @@ async def report_listing(
 
     return
 
+
+@app.get("/admin/users", response_model=List[schemas.User])
+def get_all_users(
+    db_session: Session = Depends(db.get_db),
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    return db_session.query(db.User).order_by(db.User.created_at.desc()).all()
+
+@app.get("/admin/reports", response_model=List[schemas.Listing])
+def get_reported_listings(
+    db_session: Session = Depends(db.get_db),
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    #placeholder
+    return db_session.query(db.Listing).order_by(db.Listing.created_at.desc()).all()
 
 
 @app.get("/listings/{listing_id}", response_model=schemas.ListingPublic)
