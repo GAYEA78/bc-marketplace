@@ -8,6 +8,8 @@ import ThreadPage from './pages/ThreadPage';
 import './App.css';
 import logo from './assets/bc_marketplace_logo.png';
 import MyListingsPage from './pages/MyListingsPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRoute from './AdminRoute';
 
 const GoogleIcon = () => (
     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
@@ -287,10 +289,36 @@ function HomePage({ onListingCreated, onListingClick }) {
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [currentUser, setCurrentUser] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
   const [reportingListingId, setReportingListingId] = useState(null);
+
+  // fetch the current user whenever the token changes
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      if (!token) {
+        setCurrentUser(null);
+        return;
+      }
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/users/me`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (response.ok) {
+          const user = await response.json();
+          setCurrentUser(user);
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      }
+    };
+    fetchCurrentUser();
+  }, [token]);
 
   const handleLogin = (tok) => {
     localStorage.setItem('authToken', tok);
@@ -304,13 +332,19 @@ function App() {
 
   const handleListingCreated = () => {
     setIsCreateModalOpen(false);
-    setUpdateTrigger(prev => prev + 1);
+    setUpdateTrigger((prev) => prev + 1);
   };
 
   return (
     <Router>
       <div className="app-wrapper">
-        <Header token={token} onLogout={handleLogout} onPostListingClick={() => setIsCreateModalOpen(true)} />
+        <Header
+          token={token}
+          onLogout={handleLogout}
+          onPostListingClick={() => setIsCreateModalOpen(true)}
+          currentUser={currentUser}
+        />
+
         <main>
           <Routes>
             <Route
@@ -327,6 +361,9 @@ function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/thread/:threadId" element={<ThreadPage />} />
             <Route path="/my-listings" element={<MyListingsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Route>
           </Routes>
         </main>
 
@@ -345,7 +382,7 @@ function App() {
           <ListingDetailModal
             listingId={selectedListingId}
             closeModal={() => setSelectedListingId(null)}
-            setReportingListingId={setReportingListingId}
+            onReportClick={setReportingListingId}
           />
         )}
 

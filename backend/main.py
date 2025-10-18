@@ -297,6 +297,35 @@ def delete_listing(
     db_session.commit()
     return
 
+
+@app.delete("/admin/listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_listing(
+    listing_id: str, 
+    db_session: Session = Depends(db.get_db), 
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    listing = db_session.query(db.Listing).filter(db.Listing.id == listing_id).first()
+
+    if not listing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+    image_urls = [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4]
+    for url in image_urls:
+        if url:
+            try:
+                if "s3.amazonaws.com" in url:
+                    filename = url.split('/')[-1]
+                    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=filename)
+                else:
+                    os.remove(url.lstrip('/'))
+            except (FileNotFoundError, Exception):
+                pass
+
+    db_session.delete(listing)
+    db_session.commit()
+    return
+
+
+
 @app.post("/listings/{listing_id}/report", status_code=status.HTTP_204_NO_CONTENT)
 async def report_listing(
     listing_id: str,
