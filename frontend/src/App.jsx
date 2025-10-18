@@ -388,7 +388,7 @@ function App() {
           <ListingDetailModal
             listingId={selectedListingId}
             closeModal={() => setSelectedListingId(null)}
-            onReportClick={setReportingListingId}
+            setReportingListingId={setReportingListingId}
           />
         )}
 
