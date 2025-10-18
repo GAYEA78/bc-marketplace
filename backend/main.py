@@ -114,8 +114,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db_session: Session = 
     user = db_session.query(db.User).filter(db.User.id == user_id).first()
     if user is None:
         raise credentials_exception
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="User is banned."
+        )
     return user
-
 
 def get_current_admin_user(current_user: schemas.User = Depends(get_current_user)):
     if not current_user.is_admin:
@@ -124,6 +128,73 @@ def get_current_admin_user(current_user: schemas.User = Depends(get_current_user
             detail="Not authorized: Admin access required"
         )
     return current_user
+
+
+@app.post("/admin/users/{user_id}/ban", response_model=schemas.User)
+def ban_user(
+    user_id: str,
+    db_session: Session = Depends(db.get_db),
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    user_to_ban = db_session.query(db.User).filter(db.User.id == user_id).first()
+    if not user_to_ban:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user_to_ban.is_banned = True
+
+    existing_ban = db_session.query(db.BannedEmail).filter(db.BannedEmail.email == user_to_ban.bc_email).first()
+    if not existing_ban:
+        new_ban = db.BannedEmail(email=user_to_ban.bc_email)
+        db_session.add(new_ban)
+
+    db_session.commit()
+    db_session.refresh(user_to_ban)
+    return user_to_ban
+
+@app.post("/admin/users/{user_id}/unban", response_model=schemas.User)
+def unban_user(
+    user_id: str,
+    db_session: Session = Depends(db.get_db),
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    user_to_unban = db_session.query(db.User).filter(db.User.id == user_id).first()
+    if not user_to_unban:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user_to_unban.is_banned = False
+
+    banned_email_entry = db_session.query(db.BannedEmail).filter(db.BannedEmail.email == user_to_unban.bc_email).first()
+    if banned_email_entry:
+        db_session.delete(banned_email_entry)
+
+    db_session.commit()
+    db_session.refresh(user_to_unban)
+    return user_to_unban
+
+
+
+@app.delete("/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: str,
+    db_session: Session = Depends(db.get_db),
+    admin_user: schemas.User = Depends(get_current_admin_user)
+):
+    user_to_delete = db_session.query(db.User).filter(db.User.id == user_id).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    existing_ban = db_session.query(db.BannedEmail).filter(db.BannedEmail.email == user_to_delete.bc_email).first()
+    if not existing_ban:
+        new_ban = db.BannedEmail(email=user_to_delete.bc_email)
+        db_session.add(new_ban)
+
+
+    db_session.delete(user_to_delete)
+    db_session.commit()
+    return
+
+
+
 
 @app.get("/")
 def read_root():
@@ -172,6 +243,9 @@ def auth_google_callback(code: str, db_session: Session = Depends(db.get_db)):
         raise HTTPException(status_code=400, detail="Failed to fetch user info")
     user_info = user_info_res.json()
     user_email = user_info.get("email", "")
+    banned_email_entry = db_session.query(db.BannedEmail).filter(db.BannedEmail.email == user_email).first()
+    if banned_email_entry:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This email address has been banned.")
     #if not user_email.endswith("@bc.edu"):
         #raise HTTPException(status_code=403, detail=f"Access denied. Email '{user_email}' is not a valid @bc.edu address.")
     user = db_session.query(db.User).filter(db.User.bc_email == user_email).first()

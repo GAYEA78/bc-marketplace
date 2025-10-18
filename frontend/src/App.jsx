@@ -295,7 +295,6 @@ function App() {
   const [updateTrigger, setUpdateTrigger] = useState(0);
   const [reportingListingId, setReportingListingId] = useState(null);
 
-  // fetch the current user whenever the token changes
   useEffect(() => {
     const fetchCurrentUser = async () => {
       if (!token) {
@@ -307,6 +306,13 @@ function App() {
           `${import.meta.env.VITE_API_BASE_URL}/users/me`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
+        if (response.status === 403){
+          handleLogout();
+          return;
+        }
+                  
+        
         if (response.ok) {
           const user = await response.json();
           setCurrentUser(user);

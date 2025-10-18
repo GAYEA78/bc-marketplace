@@ -6,44 +6,97 @@ function AdminDashboard() {
   const [listings, setListings] = useState([]);
   const token = localStorage.getItem('authToken');
 
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchListings = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/reports`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch listings');
+      const data = await response.json();
+      setListings(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     document.title = 'Admin Dashboard - BC Marketplace';
-
-    const fetchData = async (url, setter) => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${url}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error(`Failed to fetch from ${url}`);
-        const data = await response.json();
-        setter(data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
-    fetchData('/admin/users', setUsers);
-    fetchData('/admin/reports', setListings); // For now, this gets all listings
+    fetchUsers();
+    fetchListings();
   }, [token]);
 
-  const handleDelete = async (listingId) => {
+  const handleBan = async (userId) => {
+    if (!window.confirm("Are you sure you want to ban this user? They will not be able to log in or re-register with this email.")) {
+      return;
+    }
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/users/${userId}/ban`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to ban user.');
+      fetchUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleUnban = async (userId) => {
+    if (!window.confirm("Are you sure you want to unban this user? They will be able to log in again.")) {
+      return;
+    }
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/users/${userId}/unban`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to unban user.');
+      fetchUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+  
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this user? Their email will be banned.")) {
+      return;
+    }
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to delete user.');
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleDeleteListing = async (listingId) => {
     if (!window.confirm("ADMIN ACTION: Are you sure you want to permanently delete this listing?")) {
       return;
     }
-
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/listings/${listingId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to delete listing.');
-      }
-      
+      if (!response.ok) throw new Error('Failed to delete listing.');
       setListings(prevListings => prevListings.filter(listing => listing.id !== listingId));
-
     } catch (err) {
       alert(err.message);
     }
@@ -61,15 +114,24 @@ function AdminDashboard() {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Joined</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map(user => (
-                <tr key={user.id}>
+                <tr key={user.id} className={user.is_banned ? 'banned-row' : ''}>
                   <td>{user.name}</td>
                   <td>{user.bc_email}</td>
-                  <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                  <td>{user.is_banned ? 'Banned' : 'Active'}</td>
+                  <td className="actions-cell">
+                    {user.is_banned ? (
+                      <button onClick={() => handleUnban(user.id)} className="btn-unban-admin">Unban</button>
+                    ) : (
+                      <button onClick={() => handleBan(user.id)} className="btn-ban-admin">Ban</button>
+                    )}
+                    <button onClick={() => handleDeleteUser(user.id)} className="btn-delete-admin">Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -96,7 +158,7 @@ function AdminDashboard() {
                   <td>${listing.price.toFixed(2)}</td>
                   <td>{listing.category}</td>
                   <td>
-                    <button onClick={() => handleDelete(listing.id)} className="btn-delete-admin">
+                    <button onClick={() => handleDeleteListing(listing.id)} className="btn-delete-admin">
                       Delete
                     </button>
                   </td>

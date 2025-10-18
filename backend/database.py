@@ -22,6 +22,7 @@ class User(Base):
     photo_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_banned = Column(Boolean, default=False, nullable=False)
 
 class ListingCategory(enum.Enum):
     TEXTBOOKS = "Textbooks"
@@ -69,6 +70,12 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     thread = relationship("MessageThread", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
+
+class BannedEmail(Base):
+    __tablename__ = "banned_emails"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 def get_db():
     db = SessionLocal()

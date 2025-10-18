@@ -8,6 +8,7 @@ class User(BaseModel):
     bc_email: str
     photo_url: str | None = None
     is_admin: bool
+    is_banned: bool
     class Config:
         from_attributes = True
 
