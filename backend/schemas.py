@@ -13,7 +13,7 @@ class User(BaseModel):
 class ListingBase(BaseModel):
     title: str
     description: str | None = None
-    price: float = Field(gt=0, description="Price must be greater than zero")
+    price: float = Field(ge=0, description="Price must be greater than or equal to zero")
     category: db.ListingCategory
     image_url_1: str | None = None
     image_url_2: str | None = None
