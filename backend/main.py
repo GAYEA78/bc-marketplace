@@ -200,7 +200,11 @@ def create_listing(
     saved_urls = []
     for file in files:
         if file.content_type not in ["image/jpeg", "image/png"]:
-            continue
+            if file.content_type not in ["image/jpeg", "image/png"]:
+                raise HTTPException(
+                        status_code = status.HTTP_400_BAD_REQUEST,
+                        detail = f"Invalid file type: '{file.content_type}'. Only JPG and PNG Images are accepted."
+                )
 
         file_extension = file.filename.split(".")[-1]
         unique_filename = f"{uuid.uuid4()}.{file_extension}"

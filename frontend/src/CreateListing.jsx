@@ -115,7 +115,7 @@ function CreateListing({ onListingCreated }) {
 
         <div className="form-group">
           <label htmlFor="price">Price</label>
-          <input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="$" step="0.01" required />
+          <input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="$" step="0.01" min="0" required />
         </div>
         
         <button type="submit" className="btn-form-primary" disabled={isSubmitting}>
