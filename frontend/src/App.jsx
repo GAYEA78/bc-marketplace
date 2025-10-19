@@ -6,6 +6,7 @@ import Listings from './Listings';
 import MessagesPage from './pages/MessagesPage';
 import ThreadPage from './pages/ThreadPage';
 import './App.css';
+import { normalizeImg } from './utils/imageUrl';
 import logo from './assets/bc_marketplace_logo.png';
 import MyListingsPage from './pages/MyListingsPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -84,7 +85,7 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
         if (!response.ok) throw new Error('Listing not found');
         const data = await response.json();
         setListing(data);
-        setSelectedImage(data.main_image_url || data.image_url_1);
+        setSelectedImage(normalizeImg(data.main_image_url || data.image_url_1));
       } catch (error) {
         console.error(error);
       } finally {
@@ -118,7 +119,9 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
   };
 
   const galleryImages = listing
-    ? [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4].filter(Boolean)
+    ? [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4]
+        .filter(Boolean)
+        .map(normalizeImg)
     : [];
 
   return (
@@ -133,17 +136,22 @@ function ListingDetailModal({ listingId, closeModal, setReportingListingId }) {
             <div>
               {selectedImage && (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL}${selectedImage}`}
+                  src={selectedImage}
                   alt={listing.title}
                   className="modal-main-image"
-                />
+                  onError={(e) => {
+                    console.error('Image failed to load:', e.currentTarget.src);
+                    e.currentTarget.src = 'https://placehold.co/600x400?text=No+Image';
+                   }}
+                 />
+
               )}
 
               <div className="modal-thumbnail-gallery">
                 {galleryImages.map((url, index) => (
                   <img
                     key={index}
-                    src={`${import.meta.env.VITE_API_BASE_URL}${url}`}
+                    src={url}
                     alt={`${listing.title} thumbnail ${index + 1}`}
                     className={url === selectedImage ? 'thumbnail selected' : 'thumbnail'}
                     onClick={() => setSelectedImage(url)}

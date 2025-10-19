@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import './MyListingsPage.css';
+import { normalizeImg } from '../utils/imageUrl';
+const apiBase = import.meta.env.VITE_API_BASE_URL;
 
 function MyListingsPage() {
   const [listings, setListings] = useState([]);
@@ -10,20 +11,15 @@ function MyListingsPage() {
 
   useEffect(() => {
     const fetchMyListings = async () => {
-      if (!token) {
-        setError("You must be logged in to view your listings.");
-        setLoading(false);
-        return;
-      }
+      if (!token) { setError("You must be logged in to view your listings."); setLoading(false); return; }
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/users/me/listings`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${apiBase}/users/me/listings`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error('Could not fetch your listings.');
-        const data = await response.json();
-        setListings(data);
-      } catch (err) {
-        setError(err.message);
+        if (!res.ok) throw new Error('Could not fetch your listings.');
+        setListings(await res.json());
+      } catch (e) {
+        setError(e.message);
       } finally {
         setLoading(false);
       }
@@ -31,26 +27,17 @@ function MyListingsPage() {
     fetchMyListings();
   }, [token]);
 
-  const handleDelete = async (listingId) => {
-    if (!window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
-      return;
-    }
-
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this listing?")) return;
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/listings/${listingId}`, {
+      const res = await fetch(`${apiBase}/listings/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to delete listing.');
-      }
-      
-      setListings(prevListings => prevListings.filter(listing => listing.id !== listingId));
-
-    } catch (err) {
-      alert(err.message);
+      if (!res.ok) throw new Error((await res.json()).detail || 'Failed to delete listing.');
+      setListings((prev) => prev.filter((l) => l.id !== id));
+    } catch (e) {
+      alert(e.message);
     }
   };
 
@@ -64,26 +51,31 @@ function MyListingsPage() {
         {listings.length === 0 ? (
           <p>You have not posted any listings yet.</p>
         ) : (
-          listings.map(listing => (
-            <div key={listing.id} className="my-listing-card">
-<img
-  src={`${import.meta.env.VITE_API_BASE_URL}${listing.main_image_url || listing.image_url_1 || ''}`}
-  alt={listing.title}
-  className="my-listing-card-image"
-  onError={(e) => {
-    e.currentTarget.src = 'https://via.placeholder.com/600x400?text=No+Image';
-  }}
-/>
+          listings.map((l) => {
+            const displayImage =
+              l.main_image_url || l.image_url_1 || l.image_url_2 || l.image_url_3 || l.image_url_4;
 
-              <div className="my-listing-card-content">
-                <h3>{listing.title}</h3>
-                <p className="my-listing-price">${listing.price.toFixed(2)}</p>
-                <button onClick={() => handleDelete(listing.id)} className="delete-button">
-                  Delete
-                </button>
+            return (
+              <div key={l.id} className="my-listing-card">
+                {displayImage && (
+                  <img
+                    src={normalizeImg(displayImage)}       
+                    alt={l.title}
+                    className="my-listing-card-image"
+                    onError={(e) => {
+                      console.error('Image failed to load:', e.currentTarget.src);
+                      e.currentTarget.src = 'https://placehold.co/600x400?text=No+Image';
+                    }}
+                  />
+                )}
+                <div className="my-listing-card-content">
+                  <h3>{l.title}</h3>
+                  <p className="my-listing-price">${l.price.toFixed(2)}</p>
+                  <button onClick={() => handleDelete(l.id)} className="delete-button">Delete</button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

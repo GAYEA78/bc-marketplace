@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { normalizeImg } from './utils/imageUrl';
 
 const categories = ["All Products", "Textbooks", "Furniture", "Electronics", "Tickets", "Other"];
 
@@ -112,12 +113,12 @@ function Listings({ onListingCreated, onListingClick }) {
 
                   return (
                     <img
-                      src={`${import.meta.env.VITE_API_BASE_URL}${displayImage}`}
+                      src={normalizeImg(displayImage)}
                       alt={listing.title}
                       className="listing-card-image"
                       onError={(e) => {
-                        e.currentTarget.src =
-                          'https://via.placeholder.com/600x400?text=No+Image';
+                        console.error('Image failed to load:', e.currentTarget.src);
+                        e.currentTarget.src = 'https://placehold.co/600x400?text=No+Image';
                       }}
                     />
                   );
