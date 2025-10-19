@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi import File, Form, UploadFile
 import uuid
+import boto3
 import shutil
 from fastapi import BackgroundTasks
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
@@ -41,6 +42,14 @@ conf = ConnectionConfig(
 )
 
 fm = FastMail(conf)
+
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_S3_REGION")
+)
+S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME")
 
 class ConnectionManager:
     def __init__(self):
@@ -283,34 +292,32 @@ def create_listing(
     saved_urls = []
     for file in files:
         if file.content_type not in ["image/jpeg", "image/png"]:
-            if file.content_type not in ["image/jpeg", "image/png"]:
-                raise HTTPException(
-                        status_code = status.HTTP_400_BAD_REQUEST,
-                        detail = f"Invalid file type: '{file.content_type}'. Only JPG and PNG Images are accepted."
-                )
-
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"Invalid file type: '{file.content_type}'. Only JPG and PNG are accepted."
+            )
+        
         file_extension = file.filename.split(".")[-1]
         unique_filename = f"{uuid.uuid4()}.{file_extension}"
-        file_path = f"static/images/{unique_filename}"
-
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        saved_urls.append(f"/{file_path}")
+        
+        s3_client.upload_fileobj(
+            file.file, 
+            S3_BUCKET_NAME, 
+            unique_filename,
+            ExtraArgs={'ContentType': file.content_type}
+        )
+        
+        file_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{unique_filename}"
+        saved_urls.append(file_url)
 
     image_urls_dict = {f"image_url_{i+1}": url for i, url in enumerate(saved_urls)}
-
     main_image_url = saved_urls[main_image_index] if 0 <= main_image_index < len(saved_urls) else None
-
+    
     listing_data = schemas.ListingCreate(
-        title=title,
-        description=description,
-        price=price,
-        category=category,
-        main_image_url=main_image_url,
-        **image_urls_dict
+        title=title, description=description, price=price, category=category,
+        main_image_url=main_image_url, **image_urls_dict
     )
-
+    
     new_listing = db.Listing(**listing_data.model_dump(), owner_id=current_user.id)
     db_session.add(new_listing)
     db_session.commit()
@@ -352,25 +359,23 @@ def delete_listing(
     current_user: schemas.User = Depends(get_current_user)
 ):
     listing = db_session.query(db.Listing).filter(db.Listing.id == listing_id).first()
-
     if not listing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
-
     if listing.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this listing")
 
     image_urls = [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4]
     for url in image_urls:
-        if url:
+        if url and "s3.amazonaws.com" in url:
             try:
-                os.remove(url.lstrip('/'))
-            except FileNotFoundError:
-                pass
+                filename = url.split('/')[-1]
+                s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=filename)
+            except Exception as e:
+                print(f"Error deleting file from S3: {e}")
 
     db_session.delete(listing)
     db_session.commit()
     return
-
 
 @app.delete("/admin/listings/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 def admin_delete_listing(
@@ -379,20 +384,17 @@ def admin_delete_listing(
     admin_user: schemas.User = Depends(get_current_admin_user)
 ):
     listing = db_session.query(db.Listing).filter(db.Listing.id == listing_id).first()
-
     if not listing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+
     image_urls = [listing.image_url_1, listing.image_url_2, listing.image_url_3, listing.image_url_4]
     for url in image_urls:
-        if url:
+        if url and "s3.amazonaws.com" in url:
             try:
-                if "s3.amazonaws.com" in url:
-                    filename = url.split('/')[-1]
-                    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=filename)
-                else:
-                    os.remove(url.lstrip('/'))
-            except (FileNotFoundError, Exception):
-                pass
+                filename = url.split('/')[-1]
+                s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=filename)
+            except Exception as e:
+                print(f"Error deleting file from S3: {e}")
 
     db_session.delete(listing)
     db_session.commit()
@@ -456,7 +458,7 @@ def get_reported_listings(
     db_session: Session = Depends(db.get_db),
     admin_user: schemas.User = Depends(get_current_admin_user)
 ):
-    #placeholder
+
     return db_session.query(db.Listing).order_by(db.Listing.created_at.desc()).all()
 
 
