@@ -149,8 +149,14 @@ def ban_user(
     if not user_to_ban:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    user_to_ban.is_banned = True
+    if user_to_ban.is_admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Admins cannot be banned.")
+    
+    if user_to_ban.id == admin_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Admins cannot ban themselves.")
 
+    user_to_ban.is_banned = True
+    
     existing_ban = db_session.query(db.BannedEmail).filter(db.BannedEmail.email == user_to_ban.bc_email).first()
     if not existing_ban:
         new_ban = db.BannedEmail(email=user_to_ban.bc_email)
